@@ -1,3 +1,6 @@
 dbdata/
 files/
 wuzapi
+wuzapi.exe
+wuzapi.app/Contents
+.htaccess
