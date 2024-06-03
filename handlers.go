@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/patrickmn/go-cache"
 	"github.com/vincent-petithory/dataurl"
 	"go.mau.fi/whatsmeow"
@@ -2980,11 +2979,16 @@ func (s *server) DeleteUser() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		// Get the user ID from the request URL
-		vars := mux.Vars(r)
-		userID := vars["id"]
-
+		var user struct {
+			Id int `json:"id"`
+		}
+		err := json.NewDecoder(r.Body).Decode(&user)
+		if err != nil {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("Incomplete data in Payload. Required id"))
+			return
+		}
 		// Delete the user from the database
-		result, err := s.db.Exec("DELETE FROM users WHERE id = ?", userID)
+		result, err := s.db.Exec("DELETE FROM users WHERE id = ?", user.Id)
 		if err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, errors.New("Problem accessing DB"))
 			return
@@ -2998,7 +3002,10 @@ func (s *server) DeleteUser() http.HandlerFunc {
 		}
 
 		// Return a success response
-		response := map[string]interface{}{"Details": "User deleted successfully"}
+		response := map[string]interface{}{
+			"Details": "User deleted successfully",
+			"id":      user.Id,
+		}
 		responseJson, err := json.Marshal(response)
 
 		if err != nil {

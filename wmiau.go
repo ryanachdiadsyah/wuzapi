@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/go-resty/resty/v2"
-	"github.com/mdp/qrterminal/v3"
 	"github.com/patrickmn/go-cache"
 	"github.com/skip2/go-qrcode"
 	"go.mau.fi/whatsmeow"
@@ -49,7 +48,7 @@ type MyClient struct {
 
 // Connects to Whatsapp Websocket on server startup if last state was connected
 func (s *server) connectOnStartup() {
-	rows, err := s.db.Query("SELECT id,token,jid,webhook,events FROM users WHERE connected=1")
+	rows, err := s.db.Query("SELECT id,name,token,jid,webhook,events FROM users WHERE connected=1")
 	if err != nil {
 		log.Error().Err(err).Msg("DB Problem")
 		return
@@ -57,11 +56,12 @@ func (s *server) connectOnStartup() {
 	defer rows.Close()
 	for rows.Next() {
 		txtid := ""
+		name := ""
 		token := ""
 		jid := ""
 		webhook := ""
 		events := ""
-		err = rows.Scan(&txtid, &token, &jid, &webhook, &events)
+		err = rows.Scan(&txtid, &name, &token, &jid, &webhook, &events)
 		if err != nil {
 			log.Error().Err(err).Msg("DB Problem")
 			return
@@ -70,6 +70,7 @@ func (s *server) connectOnStartup() {
 			v := Values{map[string]string{
 				"Id":      txtid,
 				"Jid":     jid,
+				"Name":    name,
 				"Webhook": webhook,
 				"Token":   token,
 				"Events":  events,
@@ -161,7 +162,7 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 	//store.CompanionProps.PlatformType = waProto.CompanionProps_CHROME.Enum()
 	//store.CompanionProps.Os = proto.String("Mac OS")
 
-	osName := "CDNCRM"
+	osName := "CDNCRM.com"
 	store.DeviceProps.PlatformType = waProto.DeviceProps_CHROME.Enum()
 	store.DeviceProps.Os = &osName
 
@@ -210,10 +211,10 @@ func (s *server) startClient(userID int, textjid string, token string, subscript
 			for evt := range qrChan {
 				if evt.Event == "code" {
 					// Display QR code in terminal (useful for testing/developing)
-					if *logType != "json" {
-						qrterminal.GenerateHalfBlock(evt.Code, qrterminal.L, os.Stdout)
-						fmt.Println("QR code:\n", evt.Code)
-					}
+					// if *logType != "json" {
+					// 	qrterminal.GenerateHalfBlock(evt.Code, qrterminal.L, os.Stdout)
+					// 	fmt.Println("QR code:\n", evt.Code)
+					// }
 					// Store encoded/embeded base64 QR on database for retrieval with the /qr endpoint
 					image, _ := qrcode.Encode(evt.Code, qrcode.Medium, 256)
 					base64qrcode := "data:image/png;base64," + base64.StdEncoding.EncodeToString(image)

@@ -1,48 +1,75 @@
 openapi: 3.0.0
 info:
-  title: WUZAPI
-  description: "WUZAPI implements a REST API for WhatsApp.\n\nFor authentication you must pass the 'token' header with a token that will be matched with the 'users' table on sqlite dbdata/users.db database).\n\nYou can insert a sample user with this command:\n\n<pre>sqlite3 settings.db \"insert into users ('name','token') values ('John','1234ABCD')\"</pre>\n\nYou will need to scan the QR code using your own front end or you could use the provided one [here](/login?token=1234ABCD).\n\nTo receive messages you will need to create your own server and set its URL as hook using the [webhook](#Webhook) API call.\n\n <b>PS:</b> Phone numbers should have country code with or without the <b>+</b> sign eg: <b>5491155553934</b> or <b>+5491155553934</b>, but natively whatsapp requires no plus sign prefix."
-  version: '3.0'
-  termsOfService: ''
-   
+  title: CDNCRM-API
+  description: "This is an API Document for CDNCRM.com, if you see this page, this document for internal usage only"
+  version: '3.1'
+  contact:
+    name: Support
+    email: "achdiadsyah@gmail.com"
 schemes:
   - http
+  - https
 
 paths:
-  /webhook:
+
+  /admin/users:
     get:
+      security:
+      - AdminApiKeyAuth: []
       tags:
-        - Webhook
-      summary: Shows webhook 
-      description: Gets the configured webhook and subscribed events 
+      - Admin
+      summary: Get all users
+      description: Retrieves a list of all users
       responses:
         200:
           description: Response
           content:
             application/json:
               schema:
-                example: { "code": 200, "data": { "subscribe": [ "Message" ], "webhook": "https://example.net/webhook" }, "success": true }
+                example: { "connected": false, "events": "All", "expiration": 0, "id": 1, "jid": "628xxxxxx:33@s.whatsapp.net", "name": "CDNCRM", "token": "1", "webhook": "https://webhook.site/" }
     post:
+      security:
+      - AdminApiKeyAuth: []
       tags:
-        - Webhook
-      summary: Sets webhook 
-      description: Sets the webhook that will be used to POST information when messages are received
-      consumes:
-        - application/json
+      - Admin
+      summary: Create a new user
+      description: Creates a new user
+
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#definitions/Webhook'
+              $ref: '#definitions/UsersAdd'
 
+      responses:
+        200:
+          description: Response
+
+          content:
+            application/json:
+              schema:
+                example: { "Details": "User Created successfully", "id": 1 }
+    delete:
+      security:
+      - AdminApiKeyAuth: []
+      tags:
+      - Admin
+      summary: Delete a user
+      description: Deletes a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#definitions/UsersDelete'
       responses:
         200:
           description: Response
           content:
             application/json:
               schema:
-                example: { "code": 200, "data": { "webhook": "https://example.net/webhook" }, "success": true }
+                example: { "Details": "User Deleted successfully", "id": 1 }
 
   /session/connect:
     post:
@@ -137,6 +164,42 @@ paths:
             application/json:
               schema:
                 example: { "code": 200, "data": { "QRCode": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEAAQMAAABmvDolAAAABlBMVEX///8AAABVwtN+AAAEw0lEQVR42uyZPa7zqhaGX0ThLmsCkZlGCktMKaU76FxmSkgUmQZWJkA6CuT3avlLvrNvvRMX9x6KXWQ/UhCsn2cR/Lv+v5YhudQ6njEs1bBjqGYDwlJJpoOAArtUbK4Pi5jN3qPAlCkstcAeBazMUaoj78RpxGW4yWYzWVfmzwFLlLX4O+VkkucN5tFDOxiIAvfoA/X4uVQ4sgUcCBTYCG7AEGGKvbdrBabQ8OOyvg3ovm4ynqfLXJ9rvi+303ie5vm/gvZXgK6BLC7fo5hiG4KwW7b6I/2+DJi1+ybVFQyx6o6bbKPVDCyjTwcBZB9uevBtAEafhiosCFH/4kNA8i1gg02B3KxezGbzEjUCDgIwYppR3SNdgtY3H0M1j8xFzCscvg/8uQvZAB9piidv1RXfZhbHdAwAlzsCNCaJDdMF4WQeeSGACZ8BMNl4FZYJA7j2YalPPhhngetHAaZPcyBg2wyYdAk0fKQ5yPja5PcBzTZW4uxJ2bTGwmxnu/BH4vwSgEsYItcCH+VZJt/AYhmHatbXdX8d2JvaTVzxCVW2aVhqheXSqvnR9b4L6AoUx3zX+jZd5rDB5jbLuv0txd8GRs+liuv+TsKloQWujxxRYf5s8gOA7fMVK9PQuDtMNCx2ibIdCMCy1s0yQU6Od9bqim1BuzoOAgzTHOiKv0d5Mt+XClN8DBxN/wxg2G2DbDYNJExCqE+Ne8poXoLxdUA/w5VrnxBQ9fjlqaJMwWgPAzLjtfKRW4A21ojnStX0dX2d5PeB0fawu2pChcuM4bk+tLmbMn0GMJslb5ptDXySbb5W1+0SyVcJOgRIQxSc7X0RUSvGs2DSeaz4gwCMNi/7XNACZc0KbPBtruv2KQA+DVFladBvt4xywhmh1Xd2fx8wzGTUltqCWrHWgqL7Jg8E0hSiFJfbUJ/Fpx3L1OHsVR8+APgoZMclUKvcft2+zTBrwjHArosim4ZcfW4Y4lVWnYXg2A8C9C5aEFXDoEJzmXFyfZoH/p0Wvw7oXoZbNQ823ase1wk2DQ3u7XK/BkzOqovwpM68Ko+jUyPFu6F8H4DvqsAuaUMZJ6+azjTPdS32KMBkLnpQ3VPnbsZgiktALW91/wDQEV5V7gT4JT6L62GRzeV0EDDC7rVFax2ZW6Aa6V5h/FEAgBlSbLrMVScU1s09+jxwG/9q87cB/Yxw3acBsk2Yw+nPf9Y1p88ARlNPtvPkF3LlPQYp8MtSx/FtpF8H4DNrZd8fOtTOxJSzXdo/c/fXAbN2DLeKs1dxHeEZZVWaju/3h18CcDk3qePZpllglDZ89MCq8nIQoDPAVaPi3iAFFwS1xjjr+HcYwD+hri216vBZzQbbZsE44RhAp+sQxfTpApGCoV1NOfsl4pX+nwC65a1uLnkK9TSuVTOhaQ4cBOzvtDcZXU5Bdl28SrF9HqrZJhwD7O/VsZpi7xSz7pXW6ahQ1/dB/RrYf2QhLBmr1lNINVRZfw9BBwArc4SszGlWWd2fxB9cFvJQYKnUUWAgV22y5v1e/ffHpiOAqMLCiOpymwNGtxvk9s8mfwcU2CiydqvJbdKuSX0K8a/KHQDsMQkyeVbtISFif8mRcfwRtF8F/l3/O+s/AQAA///lM0dZSaTeTQAAAABJRU5ErkJggg==" }, "success": true }
+  
+  /webhook:
+    get:
+      tags:
+        - Webhook
+      summary: Shows webhook 
+      description: Gets the configured webhook and subscribed events 
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example: { "code": 200, "data": { "subscribe": [ "Message" ], "webhook": "https://example.net/webhook" }, "success": true }
+    post:
+      tags:
+        - Webhook
+      summary: Sets webhook 
+      description: Sets the webhook that will be used to POST information when messages are received
+      consumes:
+        - application/json
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#definitions/Webhook'
+
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example: { "code": 200, "data": { "webhook": "https://example.net/webhook" }, "success": true }
+
   /user/info:
     post:
       tags:
@@ -179,7 +242,6 @@ paths:
             application/json:
               schema:
                 example: { "code": 200, "data": { "Users": [ { "IsInWhatsapp": true, "JID": "5491155553934@s.whatsapp.net", "Query": "5491155553934", "VerifiedName": "Company Name" }, { "IsInWhatsapp": false, "JID": "5491155553935@s.whatsapp.net", "Query": "5491155553935", "VerifiedName": "" } ] }, "success": true }
-
   /user/avatar:
     post:
       tags:
@@ -215,47 +277,7 @@ paths:
             application/json:
               schema:
                 example: { "code": 200, "data": { "5491122223333@s.whatsapp.net": { "BusinessName": "", "FirstName": "", "Found": true, "FullName": "", "PushName": "FOP2" }, "549113334444@s.whatsapp.net": { "BusinessName": "", "FirstName": "", "Found": true, "FullName": "", "PushName": "Asternic" } } }
-  /chat/markread:
-    post:
-      tags:
-        - Chat 
-      summary: Marks a message as read
-      description: Marks one or more received messages as read
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#definitions/Markread'
-
-      responses:
-        200:
-          description: Response
-          content:
-            application/json:
-              schema:
-                example: { "code": 200, "data": { "Details": "Message(s) marked as read" }, "success": true }
-  /chat/react:
-    post:
-      tags:
-        - Chat 
-      summary: Reacts to a message
-      description: Sends a reaction to some message. Phone, Body and Id are mandatory. If reaction is for your own message, prefix Phone with 'me:'. Body should be the reaction emoji.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#definitions/ReactionText'
-
-      responses:
-        200:
-          description: Response
-          content:
-            application/json:
-              schema:
-                example: {"code":200,"data":{"Details":"Sent","Id":"3EB06F9067F80BAB89FF","Timestamp":"2022-05-10T12:49:08-03:00"},"success":true}
- 
+  
   /chat/send/text:
     post:
       tags:
@@ -336,7 +358,6 @@ paths:
             application/json:
               schema:
                 example: {"code":200,"data":{"Details":"Sent","Id":"90B2F8B13FAC8A9CF6B06E99C7834DC5","Timestamp":"2022-04-20T12:49:08-03:00"},"success":true}
- 
   /chat/send/template:
     post:
       tags:
@@ -397,7 +418,6 @@ paths:
             application/json:
               schema:
                 example: {"code":200,"data":{"Details":"Sent","Id":"90B2F8B13FAC8A9CF6B06E99C7834DC5","Timestamp":"2022-04-20T12:49:08-03:00"},"success":true}
- 
   /chat/send/location:
     post:
       tags:
@@ -418,7 +438,6 @@ paths:
             application/json:
               schema:
                 example: {"code":200,"data":{"Details":"Sent","Id":"90B2F8B13FAC8A9CF6B06E99C7834DC5","Timestamp":"2022-04-20T12:49:08-03:00"},"success":true}
- 
   /chat/send/contact:
     post:
       tags:
@@ -439,11 +458,11 @@ paths:
             application/json:
               schema:
                 example: {"code":200,"data":{"Details":"Sent","Id":"90B2F8B13FAC8A9CF6B06E99C7834DC5","Timestamp":"2022-04-20T12:49:08-03:00"},"success":true}
- 
+  
   /chat/downloadimage:
     post:
       tags:
-        - Chat 
+        - Misc 
       summary: Downloads Image from message
       description: Downloads an Image from a message and returns it Base64 media encoded
       requestBody:
@@ -460,11 +479,10 @@ paths:
             application/json:
               schema:
                 example: {"code":200,"data":{"Data":"data:image/jpeg;base64,iVBORw0KGgoA5CYII...=","Mimetype":"image/jpeg"},"success":true}
-
   /chat/downloadvideo:
     post:
       tags:
-        - Chat 
+        - Misc 
       summary: Downloads Video from message
       description: Downloads a Video from a message and returns it Base64 media encoded
       requestBody:
@@ -481,11 +499,10 @@ paths:
             application/json:
               schema:
                 example: {"code":200,"data":{"Data":"data:video/mp4;base64,iVBORw0KGgoA5CYII...=","Mimetype":"video/mp4"},"success":true}
-
   /chat/downloaddocument:
     post:
       tags:
-        - Chat 
+        - Misc 
       summary: Downloads Document from message
       description: Downloads a Document from a message and returns it Base64 media encoded
       requestBody:
@@ -502,11 +519,10 @@ paths:
             application/json:
               schema:
                 example: {"code":200,"data":{"Data":"data:application/pdf;base64,iVBORw0KGgoA5CYII...=","Mimetype":"application/pdf"},"success":true}
-
   /chat/presence:
     post:
       tags:
-        - Chat 
+        - Misc 
       summary: Sets chat presence
       description: Sends indication if you are writing or not (state could be either "composing" or "paused"). Optional Media can be set to "audio" for indicating recording a message
       requestBody:
@@ -523,6 +539,46 @@ paths:
             application/json:
               schema:
                 example: { "code": 200, "data": { "Details": "Chat presence set successfuly" }, "success": true } 
+  /chat/markread:
+    post:
+      tags:
+        - Misc 
+      summary: Marks a message as read
+      description: Marks one or more received messages as read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#definitions/Markread'
+
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example: { "code": 200, "data": { "Details": "Message(s) marked as read" }, "success": true }
+  /chat/react:
+    post:
+      tags:
+        - Misc 
+      summary: Reacts to a message
+      description: Sends a reaction to some message. Phone, Body and Id are mandatory. If reaction is for your own message, prefix Phone with 'me:'. Body should be the reaction emoji.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#definitions/ReactionText'
+
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                example: {"code":200,"data":{"Details":"Sent","Id":"3EB06F9067F80BAB89FF","Timestamp":"2022-05-10T12:49:08-03:00"},"success":true}
 
   /group/list:
     get:
@@ -577,7 +633,6 @@ paths:
             application/json:
               schema:
                 example: { "code": 200, "data": { "AnnounceVersionID": "1650572126123738", "DisappearingTimer": 0, "GroupCreated": "2022-04-21T17:15:26-03:00", "IsAnnounce": false, "IsEphemeral": false, "IsLocked": false, "JID": "120362023605733675@g.us", "Name": "Super Group", "NameSetAt": "2022-04-21T17:15:26-03:00", "NameSetBy": "5491155554444@s.whatsapp.net", "OwnerJID": "5491155554444@s.whatsapp.net", "ParticipantVersionID": "1650234126145738", "Participants": [ { "IsAdmin": true, "IsSuperAdmin": true, "JID": "5491155554444@s.whatsapp.net" }, { "IsAdmin": false, "IsSuperAdmin": false, "JID": "5491155553333@s.whatsapp.net" }, { "IsAdmin": false, "IsSuperAdmin": false, "JID": "5491155552222@s.whatsapp.net" } ], "Topic": "", "TopicID": "", "TopicSetAt": "0001-01-01T00:00:00Z", "TopicSetBy": "" }, "success": true }
-
   /group/name:
     post:
       tags:
@@ -618,7 +673,6 @@ paths:
             application/json:
               schema:
                 example: { "code": 200, "data": { "Details": "Group Photo set successfully", "PictureID": "1222332123" }, "success": true }
-
 
 definitions:
   GroupPhoto:
@@ -731,8 +785,6 @@ definitions:
           Participant: 
             type: string
             example: "5491155553935@s.whatsapp.net"
-
-
   MessageLocation:
     type: object
     required: 
@@ -783,7 +835,7 @@ definitions:
       Id:
         type: string
         example: "me:3EB06F9067F80BAB89FF"
- 
+
   MessageText:
     type: object
     required: 
@@ -931,7 +983,6 @@ definitions:
           Participant: 
             type: string
             example: "5491155553935@s.whatsapp.net"
- 
 
   MessageDocument:
     type: object
@@ -1055,17 +1106,49 @@ definitions:
         type: string
         example: http://server/webhook
   TextMessage:
-     type: object
-     required:
-       - sessionId
-       - text
-     properties:
-       sessionId:
-         type: string
-         format: uuid4
-       text:
-         type: string
- 
+    type: object
+    required:
+      - sessionId
+      - text
+    properties:
+      sessionId:
+        type: string
+        format: uuid4
+      text:
+        type: string
+  UsersAdd:
+    type: object
+    required: 
+      - name
+      - token
+      - webhook
+      - expiration
+      - events
+    properties:
+      name:
+        type: string
+        example: "Device-1"
+      token:
+        type: string
+        example: "ABCDABCD1234"
+      webhook:
+        type: string
+        example: "https://example.net/webhook"
+      expiration:
+        type: integer
+        example: 1645308319
+      events:
+        type: string
+        example: "Message,ReadReceipt,Presence,HistorySync,ChatPresence,All"
+        description: "You can use 'All' to subscribe to all events or select one or many seperate by comma"
+  UsersDelete:
+    type: object
+    required: 
+      - id
+    properties:
+      id:
+        type: integer
+        example: 1
 
 components:
   securitySchemes:
@@ -1073,6 +1156,14 @@ components:
       type: apiKey
       in: header
       name: token
+    AdminApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+
+tags:
+  - name: Admin
+    description: This endpoint required AdminApiKeyAuth
 
 security:
   - ApiKeyAuth: []
