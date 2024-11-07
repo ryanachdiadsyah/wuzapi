@@ -95,5 +95,13 @@ func (s *server) routes() {
 	s.router.Handle("/group/photo", c.Then(s.SetGroupPhoto())).Methods("POST")
 	s.router.Handle("/group/name", c.Then(s.SetGroupName())).Methods("POST")
 
-	s.router.PathPrefix("/").Handler(http.FileServer(http.Dir(exPath + "/static/")))
+	// show or hide swagger by flag
+	if *showSwagger {
+		s.router.PathPrefix("/").Handler(http.FileServer(http.Dir(exPath + "/static")))
+	} else {
+		// return response for root path
+		s.router.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte("API is running"))
+		}))
+	}
 }
