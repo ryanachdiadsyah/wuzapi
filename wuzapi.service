@@ -1,16 +1,9 @@
 [Unit]
-Description=Wuzapi
-After=network-online.target
-Wants=network-online.target systemd-networkd-wait-online.service
-
-StartLimitIntervalSec=500
-StartLimitBurst=5
+Description=wuzapi
 
 [Service]
+Type=simple
 Restart=on-failure
 RestartSec=5s
-
 ExecStart=/usr/local/wuzapi/wuzapi -admitoken RyanSyah@123 -port 9999 -color -swagger
 
-[Install]
-WantedBy=multi-user.target
