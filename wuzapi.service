@@ -10,7 +10,7 @@ StartLimitBurst=5
 Restart=on-failure
 RestartSec=5s
 
-ExecStart=/usr/local/wuzapi/wuzapi -wadebug DEBUG
+ExecStart=/usr/local/wuzapi/wuzapi -admitoken RyanSyah@123 -port 9999 -color -swagger
 
 [Install]
 WantedBy=multi-user.target
