@@ -5,5 +5,5 @@ Description=wuzapi
 Type=simple
 Restart=on-failure
 RestartSec=5s
-ExecStart=/usr/local/wuzapi/wuzapi -admitoken RyanSyah@123 -port 9999 -color -swagger
+ExecStart=/usr/local/wuzapi/wuzapi -admintoken RyanSyah@123 -port 9999 -color -swagger
 
