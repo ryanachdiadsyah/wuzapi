@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -32,6 +33,16 @@ func (v Values) Get(key string) string {
 
 var messageTypes = []string{"Message", "ReadReceipt", "Presence", "HistorySync", "ChatPresence", "All"}
 
+var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+func randSeq(n int) string {
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(b)
+}
+
 func (s *server) authadmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := r.Header.Get("Authorization")
@@ -43,6 +54,7 @@ func (s *server) authadmin(next http.Handler) http.Handler {
 	})
 }
 
+// Middleware: Authenticate connections based on Token header/uri paramete
 func (s *server) authalice(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -98,64 +110,6 @@ func (s *server) authalice(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
-}
-
-// Middleware: Authenticate connections based on Token header/uri parameter
-func (s *server) auth(handler http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-
-		var ctx context.Context
-		userid := 0
-		txtid := ""
-		webhook := ""
-		jid := ""
-		events := ""
-
-		// Get token from headers or uri parameters
-		token := r.Header.Get("token")
-		if token == "" {
-			token = strings.Join(r.URL.Query()["token"], "")
-		}
-
-		myuserinfo, found := userinfocache.Get(token)
-		if !found {
-			log.Info().Msg("Looking for user information in DB")
-			// Checks DB from matching user and store user values in context
-			rows, err := s.db.Query("SELECT id,webhook,jid,events FROM users WHERE token=? LIMIT 1", token)
-			if err != nil {
-				s.Respond(w, r, http.StatusInternalServerError, err)
-				return
-			}
-			defer rows.Close()
-			for rows.Next() {
-				err = rows.Scan(&txtid, &webhook, &jid, &events)
-				if err != nil {
-					s.Respond(w, r, http.StatusInternalServerError, err)
-					return
-				}
-				userid, _ = strconv.Atoi(txtid)
-				v := Values{map[string]string{
-					"Id":      txtid,
-					"Jid":     jid,
-					"Webhook": webhook,
-					"Token":   token,
-					"Events":  events,
-				}}
-
-				userinfocache.Set(token, v, cache.NoExpiration)
-				ctx = context.WithValue(r.Context(), "userinfo", v)
-			}
-		} else {
-			ctx = context.WithValue(r.Context(), "userinfo", myuserinfo)
-			userid, _ = strconv.Atoi(myuserinfo.(Values).Get("Id"))
-		}
-
-		if userid == 0 {
-			s.Respond(w, r, http.StatusUnauthorized, errors.New("Unauthorized"))
-			return
-		}
-		handler(w, r.WithContext(ctx))
-	}
 }
 
 // Connects to Whatsapp Servers
@@ -1303,7 +1257,6 @@ func (s *server) SendLocation() http.HandlerFunc {
 }
 
 // Sends Buttons (not implemented, does not work)
-
 func (s *server) SendButtons() http.HandlerFunc {
 
 	type buttonStruct struct {
@@ -1409,7 +1362,6 @@ func (s *server) SendButtons() http.HandlerFunc {
 }
 
 // SendList
-// https://github.com/tulir/whatsmeow/issues/305
 func (s *server) SendList() http.HandlerFunc {
 
 	type rowsStruct struct {
@@ -1638,165 +1590,6 @@ func (s *server) SendMessage() http.HandlerFunc {
 	}
 }
 
-/*
-// Sends a Template message
-func (s *server) SendTemplate() http.HandlerFunc {
-
-	type buttonStruct struct {
-		DisplayText string
-		Id          string
-		Url         string
-		PhoneNumber string
-		Type        string
-	}
-
-	type templateStruct struct {
-		Phone   string
-		Content string
-		Footer  string
-		Id      string
-		Buttons []buttonStruct
-	}
-
-	return func(w http.ResponseWriter, r *http.Request) {
-
-		txtid := r.Context().Value("userinfo").(Values).Get("Id")
-		userid, _ := strconv.Atoi(txtid)
-
-		if clientPointer[userid] == nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New("No session"))
-			return
-		}
-
-		msgid := ""
-		var resp whatsmeow.SendResponse
-//var ts time.Time
-
-		decoder := json.NewDecoder(r.Body)
-		var t templateStruct
-		err := decoder.Decode(&t)
-		if err != nil {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not decode Payload"))
-			return
-		}
-
-		if t.Phone == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Phone in Payload"))
-			return
-		}
-
-		if t.Content == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Content in Payload"))
-			return
-		}
-
-		if t.Footer == "" {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Footer in Payload"))
-			return
-		}
-
-		if len(t.Buttons) < 1 {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Missing Buttons in Payload"))
-			return
-		}
-
-		recipient, ok := parseJID(t.Phone)
-		if !ok {
-			s.Respond(w, r, http.StatusBadRequest, errors.New("Could not parse Phone"))
-			return
-		}
-
-		if t.Id == "" {
-			msgid = whatsmeow.GenerateMessageID()
-		} else {
-			msgid = t.Id
-		}
-
-		var buttons []*waProto.HydratedTemplateButton
-
-		id := 1
-		for _, item := range t.Buttons {
-			switch item.Type {
-			case "quickreply":
-				var idtext string
-				text := item.DisplayText
-				if item.Id == "" {
-					idtext = strconv.Itoa(id)
-				} else {
-					idtext = item.Id
-				}
-				buttons = append(buttons, &waProto.HydratedTemplateButton{
-					HydratedButton: &waProto.HydratedTemplateButton_QuickReplyButton{
-						QuickReplyButton: &waProto.HydratedQuickReplyButton{
-							DisplayText: &text,
-							Id:          proto.String(idtext),
-						},
-					},
-				})
-			case "url":
-				text := item.DisplayText
-				url := item.Url
-				buttons = append(buttons, &waProto.HydratedTemplateButton{
-					HydratedButton: &waProto.HydratedTemplateButton_UrlButton{
-						UrlButton: &waProto.HydratedURLButton{
-							DisplayText: &text,
-							Url:         &url,
-						},
-					},
-				})
-			case "call":
-				text := item.DisplayText
-				phonenumber := item.PhoneNumber
-				buttons = append(buttons, &waProto.HydratedTemplateButton{
-					HydratedButton: &waProto.HydratedTemplateButton_CallButton{
-						CallButton: &waProto.HydratedCallButton{
-							DisplayText: &text,
-							PhoneNumber: &phonenumber,
-						},
-					},
-				})
-			default:
-				text := item.DisplayText
-				buttons = append(buttons, &waProto.HydratedTemplateButton{
-					HydratedButton: &waProto.HydratedTemplateButton_QuickReplyButton{
-						QuickReplyButton: &waProto.HydratedQuickReplyButton{
-							DisplayText: &text,
-							Id:          proto.String(string(id)),
-						},
-					},
-				})
-			}
-			id++
-		}
-
-		msg := &waProto.Message{TemplateMessage: &waProto.TemplateMessage{
-			HydratedTemplate: &waProto.HydratedFourRowTemplate{
-				HydratedContentText: proto.String(t.Content),
-				HydratedFooterText:  proto.String(t.Footer),
-				HydratedButtons:     buttons,
-				TemplateId:          proto.String("1"),
-			},
-		},
-		}
-
-		resp, err = clientPointer[userid].SendMessage(context.Background(),recipient, msg, whatsmeow.SendRequestExtra{ID: msgid})
-		if err != nil {
-			s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("Error sending message: %v", err)))
-			return
-		}
-
-		log.Info().Str("timestamp", fmt.Sprintf("%d", resp.Timestamp)).Str("id", msgid).Msg("Message sent")
-		response := map[string]interface{}{"Details": "Sent", "Timestamp": resp.Timestamp, "Id": msgid}
-		responseJson, err := json.Marshal(response)
-		if err != nil {
-			s.Respond(w, r, http.StatusInternalServerError, err)
-		} else {
-			s.Respond(w, r, http.StatusOK, string(responseJson))
-		}
-		return
-	}
-}
-*/
 // checks if users/phones are on Whatsapp
 func (s *server) CheckUser() http.HandlerFunc {
 
@@ -2965,6 +2758,11 @@ func (s *server) AddUser() http.HandlerFunc {
 			}
 		}
 
+		// if token blank generate a new one
+		if user.Token == "" {
+			user.Token = randSeq(32)
+		}
+
 		// Insert the user into the database
 		result, err := s.db.Exec("INSERT INTO users (name, token, webhook, expiration, events, jid, qrcode) VALUES (?, ?, ?, ?, ?, ?, ?)",
 			user.Name, user.Token, user.Webhook, user.Expiration, user.Events, "", "")
@@ -2978,10 +2776,13 @@ func (s *server) AddUser() http.HandlerFunc {
 		id, _ := result.LastInsertId()
 
 		// Return the inserted user ID
-		response := map[string]interface{}{
-			"id": id,
+		if id == 0 {
+			s.Respond(w, r, http.StatusInternalServerError, errors.New("Problem inserting user"))
+		} else {
+			response := map[string]interface{}{"Details": "User created successfully", "ID": id, "Token": user.Token}
+			responseJson, _ := json.Marshal(response)
+			s.Respond(w, r, http.StatusCreated, string(responseJson))
 		}
-		json.NewEncoder(w).Encode(response)
 	}
 }
 
